@@ -1,0 +1,197 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+
+# Extend the years range
+years = np.arange(1820, 2023)  # Include years up to 2023
+
+# Sample data (secondary estimates) - extend for new years
+wealth_shares2 = {
+    '0-0%': np.concatenate([np.linspace(0, 0, 1860 - 1774 + 1), np.zeros(2024 - 1861)])[:len(years)],  # 0 after 1860
+    '0-50%': np.linspace(15, 5, len(years)),
+    '50-90%': np.linspace(35, 40, len(years)),
+    '90-99%': np.linspace(35, 35, len(years)),
+    '99-100%': np.linspace(17.5, 17.5, len(years)),
+    '99.9-100%': np.linspace(20, 20, len(years)),
+}
+
+
+# Create DataFrame
+df = pd.DataFrame(wealth_shares2, index=years) # Changed wealth_shares to wealth_shares2
+df.index.name = 'Year'
+# Check if the file exists and if not create it.
+try:
+    df2 = pd.read_csv('wealth_shares2.csv', index_col='Year')  # Assuming 'Year' is the index column
+except FileNotFoundError:
+    # If the file is not found, create it using the wealth_shares2 data
+    # Make sure wealth_shares2 is defined before this point
+    years2 = np.arange(1820, 2023)  # Include years up to 2023
+    wealth_shares2 = {
+        '0-0%': np.concatenate([np.linspace(0, 0, 1860 - 1774 + 1), np.zeros(2024 - 1861)])[:len(years2)],  # 0 after 1860, adjust length
+        '0-50%': np.linspace(15, 5, len(years2)),
+        '50-90%': np.linspace(35, 40, len(years2)),
+        '90-99%': np.linspace(35, 35, len(years2)),
+        '99-100%': np.linspace(17.5, 17.5, len(years2)),  # Use 99-100%
+        '99.9-100%': np.linspace(20, 20, len(years2)),  # Use 99.9-100%
+    }
+    df2 = pd.DataFrame(wealth_shares2, index=years2)
+    df2.index.name = 'Year'
+    df2.to_csv('wealth_shares2.csv') # Save the DataFrame to a CSV file
+    print("wealth_shares2.csv created successfully.")
+
+
+# ... (rest of your code) ... column
+
+# Set values to 0 after 1865 for '0-0%' class (already done in data generation)
+# df.loc[df.index > 1865, '0-0%'] = 0  # No longer needed
+
+# Apply linear regression to each income class
+for col in df.columns:
+    X = df.index.values.reshape(-1, 1)  # Reshape years for regression
+    y = df[col].values
+    model = LinearRegression()
+    model.fit(X, y)
+    df[col] = model.predict(X)  # Update with predicted values
+
+# --- Simplified tax and inheritance impact ---
+# Assume a gradual increase in tax and inheritance impact over time
+# Extend tax_inheritance_impact for new years
+# The issue was here: the length of tax_inheritance_impact was 251, while the DataFrame had 250 rows.
+# Changed len(years) + 1 to len(years) to match the DataFrame's size.
+tax_inheritance_impact = np.linspace(0, 10, len(years))  # Adjust the range as needed
+
+
+# Apply the impact to the top wealth group (99.9-100%)
+df['99.9-100%'] = df['99.9-100%'] - tax_inheritance_impact
+
+# Redistribute the wealth to the bottom groups (0-50%)
+df['0-50%'] = df['0-50%'] + tax_inheritance_impact / 2  # Adjust distribution as needed
+df['50-90%'] = df['50-90%'] + tax_inheritance_impact / 2 # Adjust distribution as needed
+
+# --- End of simplified impact ---
+
+# Calculate total wealth share
+df['Total'] = df.sum(axis=1)
+
+# Calculate missing portion only after 1865 and add it to Total
+df['Missing'] = np.where(df.index > 1865, 100 - df['Total'], 0)
+df['Total'] = df['Total'] + df['Missing']  # Add Missing to Total
+
+# Create a copy of the DataFrame for plotting
+plot_df = df.copy()
+
+# Set '0-0%' to 0 after 1865 for plotting
+plot_df.loc[plot_df.index > 1865, '0-0%'] = 0
+
+
+# Create stacked area line chart with the missing portion included in Total
+plt.figure(figsize=(10, 6))
+plt.stackplot(
+    plot_df.index,
+    [plot_df[col] for col in plot_df.columns if col not in ['Missing', 'Total']],  # Exclude 'Missing' and 'Total'
+    labels=[col for col in plot_df.columns if col not in ['Missing', 'Total']],  # Exclude 'Missing' and 'Total' from labels
+    alpha=0.7
+)
+
+plt.xlabel('Year')
+plt.ylabel('Wealth Share (%)')
+plt.title('Estimated Wealth Distribution in the United States (1774-2023)')  # Update title
+plt.legend(loc='upper left')
+plt.grid(True)
+plt.show()
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+
+# ... (rest of your code remains the same) ...
+# Economic Growth Rate (adjust based on historical data or projections)
+# You can use a time-varying growth rate for more realism
+growth_rate = 0.02  # Example: 2% annual growth
+
+# Create new columns for capital gains and wealth creation
+for col in df.columns:
+    if col not in ['Missing', 'Total']:  # Exclude these columns
+        # Calculate wealth for each group based on their share
+        df[col + '_Wealth'] = df[col] / 100 * initial_total_wealth 
+        
+        # Calculate capital gains (change in wealth over time)
+        # Include economic growth in capital gains calculation
+        df[col + '_Capital_Gains'] = df[col + '_Wealth'].diff() + (df[col + '_Wealth'].shift(1) * growth_rate)  
+        df.loc[df.index[0], col + '_Capital_Gains'] = 0  # Set initial capital gains to 0
+
+        # Calculate wealth creation (cumulative capital gains)
+        df[col + '_Wealth_Creation'] = df[col + '_Capital_Gains'].cumsum()
+
+# ... (rest of your code for plotting) ...
+
+
+# --- Plot Capital Gains ---
+plt.figure(figsize=(12, 6))
+for col in df.columns:
+    if col.endswith('_Capital_Gains'):
+        plt.plot(df.index, df[col], label=col.replace('_Capital_Gains', ''))
+
+plt.xlabel('Year')
+plt.ylabel('Capital Gains')
+plt.title('Capital Gains Over Time by Wealth Share')
+plt.legend(loc='upper left')
+plt.grid(True)
+plt.show()
+
+
+# --- Plot Wealth Creation ---
+plt.figure(figsize=(12, 6))
+for col in df.columns:
+    if col.endswith('_Wealth_Creation'):
+        plt.plot(df.index, df[col], label=col.replace('_Wealth_Creation', ''))
+
+plt.xlabel('Year')
+plt.ylabel('Wealth Creation')
+plt.title('Wealth Creation Over Time by Wealth Share')
+plt.legend(loc='upper left')
+plt.grid(True)
+plt.show()
+
+# Extend the years range
+years = np.arange(1820, 2023)  # Include years up to 2023
+
+# Sample data (secondary estimates) - extend for new years
+wealth_shares2 = {
+    '0-0%': np.concatenate([np.linspace(5, 0, 1860 - 1774 + 1), np.zeros(2024 - 1861)])[:len(years)],  # 0 after 1860
+    '0-50%': np.linspace(15, 5, len(years)),
+    '50-90%': np.linspace(35, 40, len(years)),
+    '90-99%': np.linspace(35, 35, len(years)),
+    '99-100%': np.linspace(17.5, 17.5, len(years)),
+    '99.9-100%': np.linspace(20, 20, len(years)),
+}
+
+
+# Create DataFrame
+# Create DataFrame
+df = pd.DataFrame(wealth_shares2, index=years) # Use wealth_shares2 here to match the index
+df.index.name = 'Year'
+
+# --- Calculate Wealth Share Change over Time ---
+wealth_share_change = df.diff()  # Calculate the change in wealth share for each year
+wealth_share_change.loc[wealth_share_change.index[0]] = 0  # Set the initial change to 0
+
+# --- Plot Wealth Share Change ---
+plt.figure(figsize=(12, 6))
+plt.stackplot(
+    wealth_share_change.index,
+    [wealth_share_change[col] for col in wealth_share_change.columns if col not in ['Missing', 'Total']],
+    labels=[col for col in wealth_share_change.columns if col not in ['Missing', 'Total']],
+    alpha=0.7
+)
+
+plt.xlabel('Year')
+plt.ylabel('Change in Wealth Share (%)')
+plt.title('Intergenerational Wealth Transfer in the United States (1820-2023)')
+plt.legend(loc='upper left')
+plt.grid(True)
+plt.axhline(0, color='black', linestyle='--')  # Add a horizontal line at 0 for reference
+plt.show()
+
