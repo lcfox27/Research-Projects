@@ -1,1 +1,20 @@
+# --- Calculate Wealth Share Change over Time ---
+wealth_share_change = df.diff()  # Calculate the change in wealth share for each year
+wealth_share_change.loc[wealth_share_change.index[0]] = 0  # Set the initial change to 0
 
+# --- Plot Wealth Share Change ---
+plt.figure(figsize=(12, 6))
+plt.stackplot(
+    wealth_share_change.index,
+    [wealth_share_change[col] for col in wealth_share_change.columns if col not in ['Missing', 'Total']],
+    labels=[col for col in wealth_share_change.columns if col not in ['Missing', 'Total']],
+    alpha=0.7
+)
+
+plt.xlabel('Year')
+plt.ylabel('Change in Wealth Share (%)')
+plt.title('Intergenerational Wealth Transfer in the United States (1820-2023)')
+plt.legend(loc='upper left')
+plt.grid(True)
+plt.axhline(0, color='black', linestyle='--')  # Add a horizontal line at 0 for reference
+plt.show()
