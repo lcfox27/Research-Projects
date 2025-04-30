@@ -1,0 +1,175 @@
+import agentpy as ap
+import numpy as np # import numpy module
+
+class WealthAgent(ap.Agent):
+    def setup(self):
+        # Initialize agent properties (wealth, income, class, etc.)
+        self.wealth = self.p.initial_wealth
+        self.income = self.p.initial_income
+        self.wealth_class = self.assign_wealth_class()
+
+    def assign_wealth_class(self):
+        # Determine wealth class based on current wealth
+        # (You can use your existing wealth share thresholds)
+        pass  
+
+    def step(self):
+        # Update agent properties based on economic and social dynamics
+        self.earn_income()
+        self.pay_taxes()
+        self.invest()
+        self.inherit_wealth()
+        self.update_wealth_class()
+
+    def earn_income(self):
+        # Model income generation (e.g., based on occupation, skills)
+        pass
+
+    def pay_taxes(self):
+        # Model tax payments (based on income, wealth, tax policy)
+        pass
+
+    def invest(self):
+        # Model investment behavior and returns
+        pass
+
+    def inherit_wealth(self):
+        # Model inheritance of wealth from previous generation
+        pass
+
+    def update_wealth_class(self):
+        # Re-assign wealth class based on updated wealth
+        pass
+
+class WealthModel(ap.Model):
+    def setup(self):
+        # Define model parameters (number of agents, time steps, etc.)
+        self.agents = ap.AgentList(self, self.p.num_agents, WealthAgent)
+
+        # Initialize wealth distribution based on initial conditions
+        for agent in self.agents:
+            agent.setup()
+        # Initialize 'gini' to an empty list in setup
+        self.gini = []  
+
+    def step(self):
+        # Advance the simulation by one time step
+        self.agents.step()
+
+        # Collect data for analysis (e.g., wealth distribution, Gini coefficient)
+        # Append the calculated Gini coefficient to the 'gini' list
+        gini_value = self.calculate_gini()  # Calculate Gini first
+        self.gini.append(gini_value)  # Append to the list
+        self.record('gini', gini_value) # Then record it
+
+    def calculate_gini(self):
+        # Calculate Gini coefficient based on current wealth distribution
+        pass
+
+# Define model parameters
+# Use a dictionary to specify distribution parameters
+parameters = {
+    'num_agents': 1000,
+    'initial_wealth': {'dist': np.random.normal, 'loc': 100, 'scale': 20}, # Use np.random.normal and parameters 
+    'initial_income': {'dist': np.random.uniform, 'low': 20, 'high': 50},  # Use np.random.uniform and parameters
+    # ... (other parameters) ...
+}
+
+# Create and run the model
+model = WealthModel(parameters)
+results = model.run()
+
+# Analyze and visualize results
+# (You can use AgentPy's built-in visualization tools or other libraries)
+print(results.variables.WealthModel)
+
+
+import agentpy as ap
+import numpy as np
+import pandas as pd
+
+# Your existing data (wealth_shares2, years)
+years = np.arange(1820, 2023)  # Include years up to 2023
+# ... (wealth_shares2 as defined in your previous code) ...
+
+class WealthAgent(ap.Agent):
+    def setup(self):
+        self.wealth = self.p.initial_wealth  
+        self.wealth_class = self.assign_wealth_class()
+
+    def assign_wealth_class(self):
+        # Assign wealth class based on wealth share thresholds
+        # (Adapt based on your wealth_shares2 structure)
+        if self.wealth < 10: # Example threshold 
+            return '0-0%'
+        elif self.wealth < 50:
+            return '0-50%'
+        # ... (add more conditions for other wealth classes) ...
+        else:
+            return '99.9-100%'
+
+    def step(self):
+        # Implement economic dynamics from your existing code
+        # (Capital gains, tax impact, etc.)
+        # You might need to access model-level data (e.g., growth rates) 
+        # using self.model.<variable_name>
+        year_index = self.model.current_year - years[0]
+        self.wealth += self.wealth * self.model.growth_rates[year_index]  # Example growth
+        # ... (add other economic dynamics from your code) ...
+        self.wealth_class = self.assign_wealth_class() 
+
+class WealthModel(ap.Model):
+    def setup(self):
+        self.current_year = years[0]
+        self.agents = ap.AgentList(self, self.p.num_agents, WealthAgent)
+
+        # Initialize wealth distribution based on wealth_shares2
+        initial_wealth_distribution = self.get_initial_wealth_distribution()
+        for i, agent in enumerate(self.agents):
+            agent.wealth = initial_wealth_distribution[i]
+            agent.setup()
+        
+        # Growth rates (adapt from your economic growth calculations)
+        self.growth_rates = np.linspace(0.01, 0.03, len(years))
+        # Initialize 'gini' to an empty list in setup
+        self.gini = []  
+
+    def get_initial_wealth_distribution(self):
+        # Generate initial wealth distribution based on wealth_shares2
+        # (Adapt to your wealth_shares2 structure)
+        num_agents_per_class = {
+            '0-0%': int(self.p.num_agents * wealth_shares2['0-0%'][0] / 100),
+            '0-50%': int(self.p.num_agents * wealth_shares2['0-50%'][0] / 100),
+            # ... (add calculations for other classes) ...
+        }
+        
+        wealth_distribution = []
+        for wealth_class, num_agents in num_agents_per_class.items():
+            # Generate wealth values for each class (e.g., using a distribution)
+            if wealth_class == '0-0%':
+                wealth_distribution.extend(np.random.uniform(0, 10, num_agents))  # Example
+            # ... (add wealth generation for other classes) ...
+
+        return wealth_distribution
+
+    def step(self):
+        self.agents.step()
+        self.current_year += 1  # Advance the year
+        # Collect data: wealth distribution, Gini coefficient, etc.
+        # Append the calculated Gini coefficient to the 'gini' list
+        gini_value = self.calculate_gini()  # Calculate Gini first
+        self.gini.append(gini_value)  # Append to the list
+        # ...
+
+# Define model parameters
+parameters = {
+    'num_agents': 1000,
+    # ... (other parameters) ...
+}
+
+# Create and run the model
+model = WealthModel(parameters)
+results = model.run()
+
+# Analyze and visualize results
+# ...
